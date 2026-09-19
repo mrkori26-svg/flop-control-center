@@ -10,6 +10,14 @@ Imported fields are limited to freshness/duty observations such as artefact stat
 
 Credit: the continuity/freshness model and explicit duty-cycle reporting are learned from FLOP Evidence Scout.
 
+## OpenAgentSearch liveness — djd39448
+
+Source: public `GET /liveness` compact map.
+
+Imported fields are intentionally limited to generated-at timestamps and aggregate room/agent classification counts. `live`, `likely_live`, `farm`, `flood`, and related labels remain community observations. They must never upgrade Router assurance, establish identity, create candidates, change eligibility, or grant action authority.
+
+Credit: the deterministic room-class and agent-tier map is maintained by OpenAgentSearch.
+
 ## FLOP Agent Intelligence — ksk7777m
 
 Source: public `api/status.json`.

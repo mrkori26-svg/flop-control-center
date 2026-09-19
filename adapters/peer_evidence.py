@@ -15,6 +15,12 @@ PEERS = {
         'url': 'https://raw.githubusercontent.com/Mariukasfak/flop-evidence-scout/main/docs/freshness.json',
         'adapter': 'freshness',
     },
+    'openagentsearch_liveness': {
+        'project': 'OpenAgentSearch Liveness',
+        'author': 'djd39448',
+        'url': 'https://openagentsearch.trustcoresystems.workers.dev/liveness',
+        'adapter': 'openagentsearch_liveness',
+    },
     'agent_intelligence': {
         'project': 'FLOP Agent Intelligence',
         'author': 'ksk7777m',
@@ -80,6 +86,36 @@ def _evidence_scout_record(data):
         tags=['peer', 'continuity', 'credit:Mariukasfak'])
 
 
+def _openagentsearch_liveness_record(data):
+    counts = data.get('counts') or {}
+    rooms = counts.get('rooms_by_class') or {}
+    agents = counts.get('agents_by_tier') or {}
+    evidence = {
+        'schema': data.get('schema'),
+        'generated_at': data.get('generated_at'),
+        'window_days': data.get('window_days'),
+        'log_rows': data.get('log_rows'),
+        'ledger_generated_at': data.get('ledger_generated_at'),
+        'rooms_by_class': {
+            key: rooms.get(key)
+            for key in ('live', 'mixed', 'quiet', 'farm', 'flood', 'unknown')
+            if key in rooms
+        },
+        'agents_by_tier': {
+            key: agents.get(key)
+            for key in ('live', 'likely_live', 'weak', 'farm', 'unknown')
+            if key in agents
+        },
+    }
+    return make_record(
+        source='djd39448/openagentsearch', source_class='community',
+        claim_type='liveness_observation', observed_at=data.get('generated_at'),
+        freshness={'state': 'reported'}, evidence=evidence,
+        verification_state='reported', authority=_authority(),
+        summary='OpenAgentSearch public liveness classification; observational only and never an assurance, identity, eligibility, or ranking upgrade.',
+        tags=['peer', 'liveness', 'observational-only', 'credit:djd39448'])
+
+
 def _agent_intelligence_record(data):
     observed = data.get('reviewed_at') or data.get('generated_at')
     warnings = [str(x) for x in (data.get('warnings') or [])[:12]]
@@ -108,6 +144,8 @@ def collect(names=None, opener=None):
             data = _fetch_json(name, opener=opener)
             if PEERS[name]['adapter'] == 'freshness':
                 records.append(_evidence_scout_record(data))
+            elif PEERS[name]['adapter'] == 'openagentsearch_liveness':
+                records.append(_openagentsearch_liveness_record(data))
             elif PEERS[name]['adapter'] == 'status':
                 records.append(_agent_intelligence_record(data))
             else:
