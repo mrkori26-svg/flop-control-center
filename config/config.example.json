@@ -19,6 +19,13 @@
   },
   "peer_evidence": {
     "enabled": false,
-    "sources": ["evidence_scout", "agent_intelligence"]
+    "sources": [
+      "evidence_scout",
+      "agent_intelligence"
+    ]
+  },
+  "interaction_observatory": {
+    "state_path": "runtime/interaction-state.json",
+    "events_path": "runtime/interaction-events.json"
   }
 }

@@ -16,6 +16,7 @@ from core.evidence_registry import build_registry
 from core.drift_handoff import read_handoff
 from core.adoption import adoption_entrypoint
 from adapters.peer_evidence import collect as collect_peer_evidence
+from core.interactions import read_interactions
 
 
 def build(cfg):
@@ -79,6 +80,19 @@ def build(cfg):
         handoff_path = str(root / handoff_path)
     drift_handoff = read_handoff(handoff_path)
 
+    interaction_cfg = cfg.get('interaction_observatory', {})
+    interaction_state = interaction_cfg.get('state_path')
+    interaction_events = interaction_cfg.get('events_path')
+    if interaction_state and not Path(interaction_state).is_absolute():
+        interaction_state = str(root / interaction_state)
+    if interaction_events and not Path(interaction_events).is_absolute():
+        interaction_events = str(root / interaction_events)
+    interactions = read_interactions(interaction_state, interaction_events)
+    if interactions.get('check_status') == 'UNCHECKED':
+        alerts.append({'level': 'warn', 'text': 'Interaction Observatory unchecked; zero social events must not be treated as quiet'})
+    elif interactions.get('coverage') == 'PARTIAL':
+        alerts.append({'level': 'warn', 'text': 'Interaction Observatory checked with partial coverage; see coverage gaps'})
+
     trust = public_trust_boundaries()
     bad = sum(1 for item in alerts if item['level'] == 'bad')
     warn = sum(1 for item in alerts if item['level'] == 'warn')
@@ -98,6 +112,7 @@ def build(cfg):
         'continuity_proof': continuity_metrics,
         'evidence_registry': evidence_registry,
         'drift_handoff': drift_handoff,
+        'interaction_observatory': interactions,
         'peer_evidence': peer_result,
         'peer_acknowledgements': peer_acknowledgements(),
         'alerts': alerts,
