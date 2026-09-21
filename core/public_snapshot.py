@@ -17,6 +17,7 @@ from core.drift_handoff import read_handoff
 from core.adoption import adoption_entrypoint
 from adapters.peer_evidence import collect as collect_peer_evidence
 from core.interactions import read_interactions
+from core.runtime_loop import read_runtime_loop
 
 
 def build(cfg):
@@ -88,6 +89,15 @@ def build(cfg):
     if interaction_events and not Path(interaction_events).is_absolute():
         interaction_events = str(root / interaction_events)
     interactions = read_interactions(interaction_state, interaction_events)
+
+    runtime_cfg = cfg.get('runtime_observatory', {})
+    runtime_state_path = runtime_cfg.get('state_path', 'flop-conformance-lab/.runtime/reference-f1-state.json')
+    if runtime_state_path and not Path(runtime_state_path).is_absolute():
+        runtime_state_path = str(root / runtime_state_path)
+    runtime_loop = read_runtime_loop(runtime_state_path)
+    if runtime_loop.get('state') in {'attention', 'invalid'}:
+        alerts.append({'level': 'warn', 'text': 'Runtime Observatory requires attention; inspect coverage/status metrics'})
+
     if interactions.get('check_status') == 'UNCHECKED':
         alerts.append({'level': 'warn', 'text': 'Interaction Observatory unchecked; zero social events must not be treated as quiet'})
     elif interactions.get('coverage') == 'PARTIAL':
@@ -113,6 +123,7 @@ def build(cfg):
         'evidence_registry': evidence_registry,
         'drift_handoff': drift_handoff,
         'interaction_observatory': interactions,
+        'runtime_observatory': runtime_loop,
         'peer_evidence': peer_result,
         'peer_acknowledgements': peer_acknowledgements(),
         'alerts': alerts,
