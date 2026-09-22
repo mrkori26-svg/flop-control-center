@@ -29,6 +29,8 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(raw)
     def do_GET(self):
+        if self.path.startswith('/api/health'):
+            return self.send_json({'ok': True, 'service': 'flop-control-center', 'mode': 'public-safe'})
         if self.path.startswith('/api/status'):
             return self.send_json(demo_snapshot() if DEMO else build(CFG))
         if self.path.startswith('/api/evidence'):
