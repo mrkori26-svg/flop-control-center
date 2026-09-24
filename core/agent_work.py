@@ -40,9 +40,13 @@ def read_agent_work(path, limit=100):
     retained = records[-max(1, int(limit)):]
     pass_count = sum(1 for item in records if item.get('status') == 'PASS')
     fail_count = sum(1 for item in records if item.get('status') == 'FAIL')
+    unverified_count = sum(
+        1 for item in records
+        if not isinstance(item.get('dimensions'), dict) or item['dimensions'].get('verification') is not True
+    )
     latest = records[-1] if records else None
     state = 'healthy'
-    if rejected or fail_count or not latest:
+    if rejected or fail_count or unverified_count or not latest:
         state = 'attention' if records else 'empty'
     return {
         'schema': 'flop.agent-work-status.v1',
@@ -52,6 +56,7 @@ def read_agent_work(path, limit=100):
             'total': len(records),
             'pass': pass_count,
             'fail': fail_count,
+            'unverified': unverified_count,
             'rejected': rejected,
         },
         'latest': latest,

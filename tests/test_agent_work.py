@@ -27,7 +27,7 @@ def test_agent_work_observatory_summarizes_verified_records(tmp_path):
     path.write_text('\n'.join(json.dumps(x) for x in rows) + '\n', encoding='utf-8')
     result = read_agent_work(path)
     assert result['state'] == 'attention'
-    assert result['metrics'] == {'total': 2, 'pass': 1, 'fail': 1, 'rejected': 0}
+    assert result['metrics'] == {'total': 2, 'pass': 1, 'fail': 1, 'unverified': 1, 'rejected': 0}
     assert result['latest']['subject'] == 'work-2'
 
 
