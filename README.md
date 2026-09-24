@@ -1,5 +1,9 @@
 # FLOP Control Center
 
+> **FLOP Tools / OBSERVE** · [ROUTE: Session Router](https://github.com/retardio73-boop/flop-session-router) · [PROVE: Conformance Lab](https://github.com/retardio73-boop/flop-conformance-lab)
+>
+> `discover -> route -> execute -> receipt -> verify -> observe`
+
 See your FLOP-oriented development stack in one place.
 
 - repository health and branch/head/dirty state
