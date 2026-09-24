@@ -1,7 +1,7 @@
 import json, os, sys
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 
 from adapters.filesystem import open_repo
 from adapters.tasks import control as task_control
@@ -9,6 +9,7 @@ from core.config import load_config, root_path
 from core.demo import snapshot as demo_snapshot
 from core.jobs import start as start_job
 from core.public_snapshot import build
+from core.empires_journeys import find_journey
 
 HERE = Path(__file__).resolve().parent
 DEMO = '--demo' in sys.argv
@@ -33,6 +34,16 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json({'ok': True, 'service': 'flop-control-center', 'mode': 'public-safe'})
         if self.path.startswith('/api/status'):
             return self.send_json(demo_snapshot() if DEMO else build(CFG))
+        if self.path.startswith('/api/empires/journey/'):
+            if DEMO:
+                return self.send_json({'ok':False,'error':'DEMO_NO_JOURNEY_EVIDENCE'}, 404)
+            journey_id = unquote(urlparse(self.path).path.removeprefix('/api/empires/journey/'))
+            cfg = CFG.get('empires_journeys', {})
+            source = cfg.get('path')
+            if source and not Path(source).is_absolute():
+                source = str(root_path(CFG) / source)
+            value = find_journey(source, journey_id)
+            return self.send_json(value if value else {'error':'JOURNEY_NOT_FOUND'}, 200 if value else 404)
         if self.path.startswith('/api/evidence'):
             snap = demo_snapshot() if DEMO else build(CFG)
             return self.send_json(snap.get('evidence_registry', {'schema':'flop.evidence-registry.v1','records':[],'rejected':[]}))

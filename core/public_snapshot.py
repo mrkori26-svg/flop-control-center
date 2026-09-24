@@ -18,6 +18,7 @@ from core.adoption import adoption_entrypoint
 from adapters.peer_evidence import collect as collect_peer_evidence
 from core.interactions import read_interactions
 from core.runtime_loop import read_runtime_loop
+from core.empires_journeys import read_journeys
 
 
 def build(cfg):
@@ -95,6 +96,11 @@ def build(cfg):
     if runtime_state_path and not Path(runtime_state_path).is_absolute():
         runtime_state_path = str(root / runtime_state_path)
     runtime_loop = read_runtime_loop(runtime_state_path)
+    journeys_cfg = cfg.get('empires_journeys', {})
+    journeys_path = journeys_cfg.get('path')
+    if journeys_path and not Path(journeys_path).is_absolute():
+        journeys_path = str(root / journeys_path)
+    empires_journeys = read_journeys(journeys_path, int(journeys_cfg.get('limit', 100)))
     if runtime_loop.get('state') in {'attention', 'invalid'}:
         alerts.append({'level': 'warn', 'text': 'Runtime Observatory requires attention; inspect coverage/status metrics'})
 
@@ -124,6 +130,7 @@ def build(cfg):
         'drift_handoff': drift_handoff,
         'interaction_observatory': interactions,
         'runtime_observatory': runtime_loop,
+        'empires_journeys': empires_journeys,
         'peer_evidence': peer_result,
         'peer_acknowledgements': peer_acknowledgements(),
         'alerts': alerts,
