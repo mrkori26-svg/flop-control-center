@@ -7,7 +7,7 @@ def read_journeys(path, limit=100):
     root = Path(path)
     if not root.exists():
         return {'schema':'flop.empires-journey-index.v1','state':'missing','journeys':[]}
-    files = [root] if root.is_file() else sorted((f for f in root.glob('*.json') if not f.name.endswith(('.report.json','.work-receipt.json'))), reverse=True)
+    files = [root] if root.is_file() else sorted((f for f in root.glob('*.json') if not f.name.endswith(('.report.json','.work-receipt.json','-native.json','-router-runtime.json'))), reverse=True)
     rows, rejected = [], []
     for file in files[:limit]:
         try:
