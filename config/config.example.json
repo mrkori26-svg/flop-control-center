@@ -29,7 +29,7 @@
     "events_path": "runtime/interaction-events.json"
   },
   "agent_work_observatory": {
-    "path": "flop-tools/.flop/state/observations/index.ndjson",
+    "path": "flop-tools/.flop/state/observations/raw/runtime.ndjson",
     "limit": 100
   }
 }
