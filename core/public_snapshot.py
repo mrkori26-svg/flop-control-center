@@ -19,6 +19,7 @@ from adapters.peer_evidence import collect as collect_peer_evidence
 from core.interactions import read_interactions
 from core.runtime_loop import read_runtime_loop
 from core.empires_journeys import read_journeys
+from core.agent_work import read_agent_work
 
 
 def build(cfg):
@@ -101,8 +102,18 @@ def build(cfg):
     if journeys_path and not Path(journeys_path).is_absolute():
         journeys_path = str(root / journeys_path)
     empires_journeys = read_journeys(journeys_path, int(journeys_cfg.get('limit', 100)))
+
+    agent_work_cfg = cfg.get('agent_work_observatory', {})
+    agent_work_path = agent_work_cfg.get('path')
+    if agent_work_path and not Path(agent_work_path).is_absolute():
+        agent_work_path = str(root / agent_work_path)
+    agent_work = read_agent_work(agent_work_path, int(agent_work_cfg.get('limit', 100)))
+
     if runtime_loop.get('state') in {'attention', 'invalid'}:
         alerts.append({'level': 'warn', 'text': 'Runtime Observatory requires attention; inspect coverage/status metrics'})
+
+    if agent_work.get('state') == 'attention':
+        alerts.append({'level': 'warn', 'text': 'FLOP Agent work observations contain failed or rejected evidence'})
 
     if interactions.get('check_status') == 'UNCHECKED':
         alerts.append({'level': 'warn', 'text': 'Interaction Observatory unchecked; zero social events must not be treated as quiet'})
@@ -131,6 +142,7 @@ def build(cfg):
         'interaction_observatory': interactions,
         'runtime_observatory': runtime_loop,
         'empires_journeys': empires_journeys,
+        'agent_work_observatory': agent_work,
         'peer_evidence': peer_result,
         'peer_acknowledgements': peer_acknowledgements(),
         'alerts': alerts,

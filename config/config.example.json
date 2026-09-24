@@ -27,5 +27,9 @@
   "interaction_observatory": {
     "state_path": "runtime/interaction-state.json",
     "events_path": "runtime/interaction-events.json"
+  },
+  "agent_work_observatory": {
+    "path": "flop-tools/.flop/state/observations/index.ndjson",
+    "limit": 100
   }
 }
