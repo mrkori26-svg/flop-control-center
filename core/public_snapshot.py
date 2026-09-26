@@ -20,6 +20,8 @@ from core.interactions import read_interactions
 from core.runtime_loop import read_runtime_loop
 from core.empires_journeys import read_journeys
 from core.agent_work import read_agent_work
+from core.external_reuse import read_external_reuse
+from core.stack_overview import build_stack_overview
 
 
 def build(cfg):
@@ -109,6 +111,14 @@ def build(cfg):
         agent_work_path = str(root / agent_work_path)
     agent_work = read_agent_work(agent_work_path, int(agent_work_cfg.get('limit', 100)))
 
+    reuse_cfg = cfg.get('external_evidence_reuse', {})
+    reuse_path = reuse_cfg.get('path', 'flop-conformance-lab/adoption/external-evidence-reuse.json')
+    if reuse_path and not Path(reuse_path).is_absolute():
+        reuse_path = str(root / reuse_path)
+    external_reuse = read_external_reuse(reuse_path)
+    adoption = adoption_entrypoint(external_reuse)
+    stack_overview = build_stack_overview(runtime_loop, evidence_registry, interactions, drift_handoff, external_reuse)
+
     if runtime_loop.get('state') in {'attention', 'invalid'}:
         alerts.append({'level': 'warn', 'text': 'Runtime Observatory requires attention; inspect coverage/status metrics'})
 
@@ -126,7 +136,9 @@ def build(cfg):
     return {
         'product': 'FLOP Control Center',
         'mode': 'public-safe',
-        'adoption': adoption_entrypoint(),
+        'adoption': adoption,
+        'external_evidence_reuse': external_reuse,
+        'stack_overview': stack_overview,
         'repos': data['repos'],
         'tasks': data['tasks'],
         'github': data['github'],

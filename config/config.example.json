@@ -28,6 +28,9 @@
     "state_path": "runtime/interaction-state.json",
     "events_path": "runtime/interaction-events.json"
   },
+  "external_evidence_reuse": {
+    "path": "flop-conformance-lab/adoption/external-evidence-reuse.json"
+  },
   "agent_work_observatory": {
     "path": "flop-tools/.flop/state/observations/raw/runtime.ndjson",
     "limit": 100

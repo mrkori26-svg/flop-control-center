@@ -8,7 +8,7 @@ class HumanUiTests(unittest.TestCase):
         cls.html = (Path(__file__).parents[1] / 'ui' / 'public' / 'index.html').read_text(encoding='utf-8')
 
     def test_human_first_sections_exist(self):
-        for label in ('Overall state', 'Needs attention', 'What changed', 'Continuity', 'Conformance handoff', 'Evidence', 'Technical detail'):
+        for label in ('Overall state', 'Needs attention', 'ROUTE / RUN / PROVE / OBSERVE', 'What changed', 'Adoption & integrate', 'Continuity', 'Conformance handoff', 'Evidence', 'Technical detail'):
             self.assertIn(label, self.html)
 
     def test_operator_actions_are_preserved(self):

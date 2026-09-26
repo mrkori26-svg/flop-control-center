@@ -35,12 +35,16 @@ PROFILES = [
 ]
 
 
-def adoption_entrypoint() -> dict[str, Any]:
+def adoption_entrypoint(external_reuse: dict[str, Any] | None = None) -> dict[str, Any]:
+    reuse = (external_reuse or {}).get('counts', {})
+    dependency = int(reuse.get('DEPENDENCY', 0)) + int(reuse.get('DURABLE_DEPENDENCY', 0))
+    integrated = dependency + int(reuse.get('TOOL_REUSE', 0))
     return {
         'schema': 'flop.adoption-entrypoint.v1',
         'goal': 'first independent pinned CI consumer',
-        'verified_external_ci': 0,
-        'integrated': 0,
+        'verified_external_ci': dependency,
+        'integrated': integrated,
+        'external_reuse': external_reuse or {'state': 'missing', 'counts': {}},
         'profiles': PROFILES,
         'quickstart': 'https://github.com/retardio73-boop/flop-conformance-lab/blob/main/docs/INTEGRATE_60_SECONDS.md',
         'matrix': 'https://github.com/retardio73-boop/flop-conformance-lab/blob/main/adoption/MATRIX.md',
