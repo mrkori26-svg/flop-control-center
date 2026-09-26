@@ -28,6 +28,10 @@
     "state_path": "runtime/interaction-state.json",
     "events_path": "runtime/interaction-events.json"
   },
+  "runtime_observatory": {
+    "state_path": "flop-conformance-lab/.runtime/reference-f1-state.json",
+    "index_path": "flop-conformance-lab/runtime-public/runtime-index.json"
+  },
   "external_evidence_reuse": {
     "path": "flop-conformance-lab/adoption/external-evidence-reuse.json"
   },

@@ -17,7 +17,7 @@ from core.drift_handoff import read_handoff
 from core.adoption import adoption_entrypoint
 from adapters.peer_evidence import collect as collect_peer_evidence
 from core.interactions import read_interactions
-from core.runtime_loop import read_runtime_loop
+from core.runtime_loop import read_runtime_loop, read_runtime_index
 from core.empires_journeys import read_journeys
 from core.agent_work import read_agent_work
 from core.external_reuse import read_external_reuse
@@ -99,6 +99,10 @@ def build(cfg):
     if runtime_state_path and not Path(runtime_state_path).is_absolute():
         runtime_state_path = str(root / runtime_state_path)
     runtime_loop = read_runtime_loop(runtime_state_path)
+    runtime_index_path = runtime_cfg.get('index_path', 'flop-conformance-lab/runtime-public/runtime-index.json')
+    if runtime_index_path and not Path(runtime_index_path).is_absolute():
+        runtime_index_path = str(root / runtime_index_path)
+    runtime_index = read_runtime_index(runtime_index_path)
     journeys_cfg = cfg.get('empires_journeys', {})
     journeys_path = journeys_cfg.get('path')
     if journeys_path and not Path(journeys_path).is_absolute():
@@ -117,7 +121,7 @@ def build(cfg):
         reuse_path = str(root / reuse_path)
     external_reuse = read_external_reuse(reuse_path)
     adoption = adoption_entrypoint(external_reuse)
-    stack_overview = build_stack_overview(runtime_loop, evidence_registry, interactions, drift_handoff, external_reuse)
+    stack_overview = build_stack_overview(runtime_loop, evidence_registry, interactions, drift_handoff, external_reuse, runtime_index)
 
     if runtime_loop.get('state') in {'attention', 'invalid'}:
         alerts.append({'level': 'warn', 'text': 'Runtime Observatory requires attention; inspect coverage/status metrics'})
@@ -153,6 +157,7 @@ def build(cfg):
         'drift_handoff': drift_handoff,
         'interaction_observatory': interactions,
         'runtime_observatory': runtime_loop,
+        'runtime_index': runtime_index,
         'empires_journeys': empires_journeys,
         'agent_work_observatory': agent_work,
         'peer_evidence': peer_result,
