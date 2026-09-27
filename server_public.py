@@ -11,6 +11,7 @@ from core.jobs import start as start_job
 from core.public_snapshot import build
 from core.empires_journeys import find_journey
 from core.economic_work import snapshot as economic_work_snapshot
+from core.ecosystem import snapshot as ecosystem_snapshot
 
 HERE = Path(__file__).resolve().parent
 DEMO = '--demo' in sys.argv
@@ -52,6 +53,10 @@ class Handler(SimpleHTTPRequestHandler):
             if DEMO:
                 return self.send_json({'schema':'flop.control-center-economic-work/v1','status':{'state':'unknown','reason':'demo mode'},'memory':{},'read_only':True})
             return self.send_json(economic_work_snapshot(root_path(CFG)))
+        if self.path.startswith('/api/ecosystem'):
+            if DEMO:
+                return self.send_json({'schema':'flop.control-center-ecosystem/v1','state':'demo','opportunities':[],'programs':{}})
+            return self.send_json(ecosystem_snapshot(root_path(CFG)))
         return super().do_GET()
 
     def do_POST(self):
