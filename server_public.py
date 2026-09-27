@@ -10,6 +10,7 @@ from core.demo import snapshot as demo_snapshot
 from core.jobs import start as start_job
 from core.public_snapshot import build
 from core.empires_journeys import find_journey
+from core.economic_work import snapshot as economic_work_snapshot
 
 HERE = Path(__file__).resolve().parent
 DEMO = '--demo' in sys.argv
@@ -47,6 +48,10 @@ class Handler(SimpleHTTPRequestHandler):
         if self.path.startswith('/api/evidence'):
             snap = demo_snapshot() if DEMO else build(CFG)
             return self.send_json(snap.get('evidence_registry', {'schema':'flop.evidence-registry.v1','records':[],'rejected':[]}))
+        if self.path.startswith('/api/economic-work'):
+            if DEMO:
+                return self.send_json({'schema':'flop.control-center-economic-work/v1','status':{'state':'unknown','reason':'demo mode'},'memory':{},'read_only':True})
+            return self.send_json(economic_work_snapshot(root_path(CFG)))
         return super().do_GET()
 
     def do_POST(self):
