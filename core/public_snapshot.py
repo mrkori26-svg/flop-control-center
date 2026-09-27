@@ -123,8 +123,11 @@ def build(cfg):
     adoption = adoption_entrypoint(external_reuse)
     stack_overview = build_stack_overview(runtime_loop, evidence_registry, interactions, drift_handoff, external_reuse, runtime_index)
 
-    if runtime_loop.get('state') in {'attention', 'invalid'}:
-        alerts.append({'level': 'warn', 'text': 'Runtime Observatory requires attention; inspect coverage/status metrics'})
+    if runtime_loop.get('state') in {'attention', 'invalid', 'stale', 'no_data'}:
+        alerts.append({'level': 'warn', 'text': 'Runtime Observatory requires attention; inspect freshness/coverage/status metrics'})
+
+    if runtime_index.get('state') in {'attention', 'invalid', 'stale', 'no_data'}:
+        alerts.append({'level': 'warn', 'text': 'Runtime public index requires attention; inspect freshness/target status'})
 
     if agent_work.get('state') == 'attention':
         alerts.append({'level': 'warn', 'text': 'FLOP Agent work observations contain failed or rejected evidence'})
