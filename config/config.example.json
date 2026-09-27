@@ -38,5 +38,8 @@
   "agent_work_observatory": {
     "path": "flop-tools/.flop/state/observations/raw/runtime.ndjson",
     "limit": 100
+  },
+  "adoption_registry": {
+    "path": "flop-conformance-lab/adoption/registry.json"
   }
 }

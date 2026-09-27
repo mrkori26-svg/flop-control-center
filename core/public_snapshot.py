@@ -14,7 +14,7 @@ from core.continuity_journal import read_records, analyze
 from core.evidence_api import make_record
 from core.evidence_registry import build_registry
 from core.drift_handoff import read_handoff
-from core.adoption import adoption_entrypoint
+from core.adoption import adoption_entrypoint, read_adoption_registry
 from adapters.peer_evidence import collect as collect_peer_evidence
 from core.interactions import read_interactions
 from core.runtime_loop import read_runtime_loop, read_runtime_index
@@ -120,7 +120,13 @@ def build(cfg):
     if reuse_path and not Path(reuse_path).is_absolute():
         reuse_path = str(root / reuse_path)
     external_reuse = read_external_reuse(reuse_path)
-    adoption = adoption_entrypoint(external_reuse)
+
+    adoption_cfg = cfg.get('adoption_registry', {})
+    adoption_path = adoption_cfg.get('path', 'flop-conformance-lab/adoption/registry.json')
+    if adoption_path and not Path(adoption_path).is_absolute():
+        adoption_path = str(root / adoption_path)
+    adoption_registry = read_adoption_registry(adoption_path)
+    adoption = adoption_entrypoint(external_reuse, adoption_registry)
     stack_overview = build_stack_overview(runtime_loop, evidence_registry, interactions, drift_handoff, external_reuse, runtime_index)
 
     if runtime_loop.get('state') in {'attention', 'invalid', 'stale', 'no_data'}:
