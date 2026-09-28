@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 def snapshot(root):
@@ -26,6 +27,7 @@ def snapshot(root):
     harness_portfolio_path = Path(root) / 'useful-work-operator' / 'ecosystem' / 'harness' / 'state' / 'portfolio.json'
     harness_pr_health_path = Path(root) / 'useful-work-operator' / 'ecosystem' / 'harness' / 'state' / 'pr-health.json'
     harness_portfolio_daemon_path = Path(root) / 'useful-work-operator' / 'ecosystem' / 'harness' / 'state' / 'portfolio-daemon.json'
+    ecosystem_supervisor_path = Path(root) / 'useful-work-operator' / 'ecosystem' / 'ecosystem-supervisor-heartbeat.json'
     block_lane_paths = [
         Path(root) / 'useful-work-operator' / 'state-blockrewards-0-of-2' / 'status.json',
         Path(root) / 'useful-work-operator' / 'state-blockrewards-1-of-2' / 'status.json',
@@ -54,6 +56,22 @@ def snapshot(root):
         harness_portfolio_daemon = json.loads(harness_portfolio_daemon_path.read_text(encoding='utf-8')) if harness_portfolio_daemon_path.exists() else None
     except Exception:
         harness_portfolio_daemon = {'state':'invalid'}
+    try:
+        ecosystem_supervisor = json.loads(ecosystem_supervisor_path.read_text(encoding='utf-8')) if ecosystem_supervisor_path.exists() else None
+    except Exception:
+        ecosystem_supervisor = {'state':'invalid'}
+    if ecosystem_supervisor is None:
+        supervisor_health = {'state':'missing','path':str(ecosystem_supervisor_path)}
+    elif ecosystem_supervisor.get('state') == 'invalid':
+        supervisor_health = {'state':'invalid','path':str(ecosystem_supervisor_path)}
+    else:
+        try:
+            observed = datetime.fromisoformat(str(ecosystem_supervisor.get('at','')).replace('Z','+00:00'))
+            age_seconds = max(0.0, (datetime.now(timezone.utc) - observed).total_seconds())
+            state = 'healthy' if ecosystem_supervisor.get('healthy') is True and age_seconds <= 180 else ('stale' if age_seconds > 180 else 'degraded')
+            supervisor_health = {'state':state,'age_seconds':round(age_seconds,3),'heartbeat':ecosystem_supervisor}
+        except Exception:
+            supervisor_health = {'state':'invalid','path':str(ecosystem_supervisor_path)}
     block_lanes = []
     for lane_path in block_lane_paths:
         try:
@@ -68,9 +86,10 @@ def snapshot(root):
         'programs':data.get('programs',{}),
         'top_opportunities':data.get('opportunities',[])[:50],
         'interesting_rooms':data.get('discovery',{}).get('interestingRooms',[])[:100],
+        'supervisor':supervisor_health,
         'blockrewards':{
             'lanes':block_lanes,
-            'precision_policy':'qualification mode: deterministic/local verification only; validation and model-consensus jobs quarantined until blockGate; fail closed',
+            'precision_policy':'qualification mode: deterministic/local verification only; deterministic validation at confidence 1 is allowed after local output-contract validation; creative and model-consensus jobs remain quarantined; fail closed',
         },
         'harness':{
             'tracker':harness_tracker,

@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -33,6 +34,12 @@ class EcosystemSnapshotTests(unittest.TestCase):
                 'discovery':{'interestingRooms':[f'r{i}' for i in range(130)]},
             }
             (eco / 'ecosystem-status.json').write_text(json.dumps(source), encoding='utf-8')
+            (eco / 'ecosystem-supervisor-heartbeat.json').write_text(json.dumps({
+                'schema':'flop.ecosystem-supervisor/v3',
+                'at':datetime.now(timezone.utc).isoformat(),
+                'healthy':True,
+                'lanes':[]
+            }), encoding='utf-8')
             lane = root / 'useful-work-operator' / 'state-blockrewards-0-of-2'
             lane.mkdir(parents=True)
             (lane / 'status.json').write_text(json.dumps({'healthy':True}), encoding='utf-8')
@@ -44,7 +51,20 @@ class EcosystemSnapshotTests(unittest.TestCase):
             self.assertEqual(len(result['interesting_rooms']), 100)
             self.assertTrue(result['blockrewards']['lanes'][0]['healthy'])
             self.assertEqual(result['blockrewards']['lanes'][1]['state'], 'missing')
+            self.assertEqual(result['supervisor']['state'], 'healthy')
+            self.assertIn('deterministic validation', result['blockrewards']['precision_policy'])
             self.assertIn('observations', result['claim_boundary'])
+
+    def test_stale_supervisor_is_explicit(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            eco = root / 'useful-work-operator' / 'ecosystem'
+            eco.mkdir(parents=True)
+            (eco / 'ecosystem-status.json').write_text(json.dumps({'opportunities':[]}), encoding='utf-8')
+            (eco / 'ecosystem-supervisor-heartbeat.json').write_text(json.dumps({
+                'at':'2020-01-01T00:00:00Z','healthy':True,'lanes':[]
+            }), encoding='utf-8')
+            self.assertEqual(snapshot(root)['supervisor']['state'], 'stale')
 
 
 if __name__ == '__main__':
