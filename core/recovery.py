@@ -27,6 +27,10 @@ def observe(path, max_age=10800):
         if not isinstance(data, dict):
             raise ValueError('EXPECTED_OBJECT')
         stamp = next((data.get(k) for k in ('at', 'checkedAt', 'generatedAt', 'updatedAt') if data.get(k)), None)
+        if stamp is None and isinstance(data.get('attemptAt'), (int, float)):
+            stamp = datetime.fromtimestamp(float(data['attemptAt']) / 1000.0, tz=timezone.utc).isoformat()
+        if stamp is None:
+            stamp = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc).isoformat()
         fresh = _freshness(stamp, datetime.now(timezone.utc), max_age)
         status = data.get('status', data.get('state'))
         failed = data.get('healthy') is False or status in ('DEGRADED', 'FAIL', 'SEARCH_UNAVAILABLE', 'PARTIAL') or bool(data.get('error'))
@@ -60,8 +64,24 @@ def snapshot(cfg):
         'runtime_evidence': (lab / '.runtime/runtime-health.json', 10800),
         'adoption_watch': (Path.home() / 'AppData/Local/FLOP/adoption/latest.json', 10800),
         'longitudinal': (live / '_publish/longitudinal-evidence-v1/runtime-public/longitudinal/latest.json', 10800),
+        'probe': (Path.home() / 'AppData/Local/Technocore/probe-agent/runtime-heartbeat.json', 120),
+        'signer': (Path.home() / 'AppData/Local/Technocore/signer-health.json', 180),
     }
     components = {name: observe(path, age) for name, (path, age) in sources.items()}
+
+    probe_data = components['probe'].get('data', {})
+    if components['probe']['state'] == 'healthy' and not (
+        probe_data.get('status') == 'OK' and probe_data.get('runtimeStatus') == 'ACTIVE' and int(probe_data.get('consecutiveFailures', 0)) == 0
+    ):
+        components['probe']['state'] = 'degraded'
+        components['probe']['last_error'] = 'PROBE_RUNTIME_NOT_ACTIVE'
+
+    signer_data = components['signer'].get('data', {})
+    if components['signer']['state'] == 'healthy' and not (
+        signer_data.get('status') == 'HEALTHY' and signer_data.get('ok') is True and signer_data.get('privateMaterialExported') is False
+    ):
+        components['signer']['state'] = 'degraded'
+        components['signer']['last_error'] = 'SIGNER_HEALTH_NOT_VERIFIED'
 
     qualification = components['passport'].get('data', {})
     published = qualification.get('published', {})
