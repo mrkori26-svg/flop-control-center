@@ -59,6 +59,7 @@ def snapshot(cfg):
     sources = {
         'operator': (worker / 'state/operator-supervisor-heartbeat.json', 180),
         'ecosystem': (worker / 'ecosystem/ecosystem-supervisor-heartbeat.json', 180),
+        'upstream_sync': (worker / 'ecosystem/upstream-sync.json', 1200),
         'blockrewards': (worker / 'state-blockrewards-0-of-1/status.json', 180),
         'harness': (worker / 'state-harness-0-of-1/status.json', 180),
         'kibble': (worker / 'state/status.json', 180),
@@ -112,11 +113,17 @@ def snapshot(cfg):
         and isinstance(published.get('passes'), (int, float))
         and published['passes'] >= 3
     )
+    direct_blockrewards_gate = bool((qualification.get('gates') or {}).get('blockGate'))
     if components['passport']['state'] == 'healthy' and not passport_ok:
-        components['passport']['state'] = 'blocked_external'
-        components['passport']['last_error'] = 'PASSPORT_NOT_CURRENTLY_PUBLISHED'
+        if direct_blockrewards_gate:
+            components['passport']['state'] = 'telemetry_stale'
+            components['passport']['last_error'] = 'PASSPORT_PUBLISHER_STALE_NONBLOCKING_DIRECT_GATE_SATISFIED'
+        else:
+            components['passport']['state'] = 'blocked_external'
+            components['passport']['last_error'] = 'PASSPORT_NOT_CURRENTLY_PUBLISHED'
         components['passport']['blocker'] = {
             'type': 'EXTERNAL_PUBLICATION',
+            'nonBlocking': direct_blockrewards_gate,
             'upstreamFresh': published.get('upstreamFresh'),
             'passportPresent': published.get('passportPresent'),
             'publishedPasses': published.get('passes'),
@@ -141,16 +148,17 @@ def snapshot(cfg):
     if components['kibble_compliance']['state'] == 'healthy' and kibble_compliance.get('healthy') is not True:
         components['kibble_compliance']['state'] = 'degraded'
         components['kibble_compliance']['last_error'] = 'KIBBLE_PROTOCOL_COMPLIANCE_FAILED'
-    elif components['kibble_compliance']['state'] == 'healthy' and kibble_compliance.get('externalAuthorityState') in {'UNAVAILABLE', 'NOT_INDEXED'}:
-        components['kibble_compliance']['state'] = 'blocked_external'
-        components['kibble_compliance']['last_error'] = 'KIBBLE_BOARD_' + str(kibble_compliance.get('externalAuthorityState'))
-        components['kibble_compliance']['blocker'] = {
-            'type': 'EXTERNAL_SCORING_AUTHORITY',
-            'authorityState': kibble_compliance.get('externalAuthorityState'),
-            'scoreError': kibble_compliance.get('scoreError'),
-            'boardFound': (kibble_compliance.get('boardScore') or {}).get('found') if isinstance(kibble_compliance.get('boardScore'), dict) else None,
-        }
-
+    elif components['kibble_compliance']['state'] == 'healthy':
+        authority = kibble_compliance.get('externalAuthorityState')
+        if authority in ('NOT_INDEXED', 'UNAVAILABLE'):
+            components['kibble_compliance']['state'] = 'blocked_external'
+            components['kibble_compliance']['last_error'] = 'KIBBLE_UPSTREAM_' + authority
+            components['kibble_compliance']['blocker'] = {
+                'type': 'EXTERNAL_KIBBLE_AUTHORITY',
+                'authorityState': authority,
+                'scoreError': kibble_compliance.get('scoreError'),
+                'upstreamRecognized': kibble_compliance.get('upstreamRecognized'),
+            }
     kibble_state_path = worker / 'state/kibble-handled.json'
     kibble_state = _load_json(kibble_state_path) or {}
     counts = {}
