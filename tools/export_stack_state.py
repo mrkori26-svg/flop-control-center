@@ -40,9 +40,18 @@ def main():
             except PermissionError as exc:
                 last_error = exc
                 time.sleep(0.25 * (attempt + 1))
+        write_mode = "atomic_replace"
         if last_error is not None:
-            raise RuntimeError(f"ATOMIC_REPLACE_FAILED:{last_error}") from last_error
-        print(json.dumps({"ok": True, "path": str(out), "state": state.get("state"), "observed_at": state.get("observed_at")}, separators=(",", ":")))
+            write_mode = "in_place_fallback"
+            with out.open("w", encoding="utf-8", newline="\n") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+        print(json.dumps({"ok": True, "path": str(out), "state": state.get("state"), "observed_at": state.get("observed_at"), "write_mode": write_mode}, separators=(",", ":")))
     finally:
         try:
             lock.unlink()
