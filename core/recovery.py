@@ -183,8 +183,12 @@ def snapshot(cfg):
     metrics['kibble.legacy_unverified'] = legacy_unverified
     metrics['kibble.submitted_without_acceptance'] = submitted_unverified
     kibble_counts = kibble_compliance.get('counts', {}) if isinstance(kibble_compliance, dict) else {}
-    metrics['kibble.externally_useful'] = kibble_counts.get('externallyUseful')
-    metrics['kibble.externally_rejected'] = kibble_counts.get('externallyRejected')
+    metrics['kibble.external_observed.useful'] = kibble_counts.get('externalObservedUseful')
+    metrics['kibble.external_observed.rejected'] = kibble_counts.get('externalObservedRejected')
+    kibble_upstream = kibble_compliance.get('upstreamRecognized') if isinstance(kibble_compliance, dict) else None
+    metrics['kibble.upstream_recognized.score'] = (kibble_upstream or {}).get('score') if isinstance(kibble_upstream, dict) else None
+    metrics['kibble.upstream_recognized.results'] = (kibble_upstream or {}).get('results') if isinstance(kibble_upstream, dict) else None
+    metrics['kibble.upstream_recognized.useful'] = (kibble_upstream or {}).get('useful') if isinstance(kibble_upstream, dict) else None
     metrics['kibble.pending_external_review'] = kibble_counts.get('pendingExternalReview')
     metrics['kibble.protocol_violations'] = kibble_counts.get('internalViolations')
     metrics['root_audit.blocking'] = root_blocking
