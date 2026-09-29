@@ -118,8 +118,21 @@ def snapshot(cfg):
     adoption = components['adoption_watch'].get('data', {})
     metrics['adoption.independent_verified'] = bool(adoption.get('classification') == 'VERIFIED_EXTERNAL_ADOPTION')
 
-    acceptable = {'healthy'}
-    overall = 'healthy' if all(v['state'] in acceptable for v in components.values()) else 'degraded'
+    internal_problem = any(v['state'] in {'degraded', 'blocked', 'attention'} for v in components.values())
+    external_block = any(v['state'] == 'blocked_external' for v in components.values())
+    overall = 'degraded' if internal_problem else ('blocked_external' if external_block else 'healthy')
+    manifest = _load_json(live / 'STACK_MANIFEST.json') or {}
+    inventory = {
+        name: {
+            'lifecycle': spec.get('lifecycle', 'UNKNOWN'),
+            **({'path': spec['path']} if isinstance(spec, dict) and spec.get('path') else {}),
+            **({'lane': spec['lane']} if isinstance(spec, dict) and spec.get('lane') else {}),
+            **({'checkoutMode': spec['checkoutMode']} if isinstance(spec, dict) and spec.get('checkoutMode') else {}),
+            **({'pinnedCommit': spec['pinnedCommit']} if isinstance(spec, dict) and spec.get('pinnedCommit') else {}),
+        }
+        for name, spec in (manifest.get('components') or {}).items()
+        if isinstance(spec, dict)
+    }
     return {
         'schema': 'flop.stack-recovery-live/v2',
         'observed_at': datetime.now(timezone.utc).isoformat(),
@@ -127,6 +140,7 @@ def snapshot(cfg):
         'authority': 'flop-control-center',
         'read_only': True,
         'components': components,
+        'inventory': inventory,
         'metrics': metrics,
         'eligibility': {
             'local_evidence': qualification.get('effective'),
