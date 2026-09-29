@@ -19,6 +19,8 @@ def _load_json(path):
 def observe(path, max_age=10800):
     path = Path(path)
     result = {'source': str(path), 'state': 'blocked', 'freshness_age': None,
+              'freshness_age_seconds': None, 'freshness_status': 'unknown',
+              'observed_at': None,
               'last_success': None, 'last_error': None}
     try:
         if path.stat().st_size > 16 * 1024 * 1024:
@@ -34,8 +36,9 @@ def observe(path, max_age=10800):
         fresh = _freshness(stamp, datetime.now(timezone.utc), max_age)
         status = data.get('status', data.get('state'))
         failed = data.get('healthy') is False or status in ('DEGRADED', 'FAIL', 'SEARCH_UNAVAILABLE', 'PARTIAL') or bool(data.get('error'))
-        result.update(state='healthy' if fresh['state'] == 'fresh' and not failed else 'degraded',
-                      freshness_age=fresh['age_seconds'], freshness=fresh['state'],
+        result.update(state='healthy' if fresh['state'] == 'fresh' and not failed else ('stale' if fresh['state'] == 'stale' else 'degraded'),
+                      freshness_age=fresh['age_seconds'], freshness_age_seconds=fresh['age_seconds'],
+                      freshness=fresh['state'], freshness_status=fresh['state'], observed_at=stamp,
                       last_success=data.get('last_success', data.get('lastSuccess')),
                       last_error=data.get('last_error', data.get('lastError', data.get('error'))),
                       data=data)
@@ -122,12 +125,17 @@ def snapshot(cfg):
         }
 
     for lane_name in ('blockrewards', 'harness'):
-        tracker = components[lane_name].get('data', {}).get('passTracker', {})
+        lane_data = components[lane_name].get('data', {})
+        tracker = lane_data.get('passTracker', {})
         passes = int(tracker.get('pass') or 0)
         receipts = int(tracker.get('receipts') or 0)
         if components[lane_name]['state'] == 'healthy' and receipts < passes:
             components[lane_name]['state'] = 'degraded'
             components[lane_name]['last_error'] = 'PASS_WITHOUT_REQUIRED_RECEIPT'
+        lane_result = lane_data.get('result', {}) if isinstance(lane_data, dict) else {}
+        if components[lane_name]['state'] == 'healthy' and lane_result.get('action') in {'read_failed', 'error', 'failed'}:
+            components[lane_name]['state'] = 'degraded'
+            components[lane_name]['last_error'] = 'LANE_OPERATION_FAILED: ' + str(lane_result.get('error') or lane_result.get('action'))
 
     kibble_compliance = components['kibble_compliance'].get('data', {})
     if components['kibble_compliance']['state'] == 'healthy' and kibble_compliance.get('healthy') is not True:
@@ -176,7 +184,7 @@ def snapshot(cfg):
     adoption = components['adoption_watch'].get('data', {})
     metrics['adoption.independent_verified'] = bool(adoption.get('classification') == 'VERIFIED_EXTERNAL_ADOPTION')
 
-    internal_problem = any(v['state'] in {'degraded', 'blocked', 'attention'} for v in components.values())
+    internal_problem = any(v['state'] in {'degraded', 'blocked', 'attention', 'stale'} for v in components.values())
     external_block = any(v['state'] == 'blocked_external' for v in components.values())
     overall = 'degraded' if internal_problem else ('blocked_external' if external_block else 'healthy')
     manifest = _load_json(live / 'STACK_MANIFEST.json') or {}
@@ -196,6 +204,8 @@ def snapshot(cfg):
     return {
         'schema': 'flop.stack-recovery-live/v2',
         'observed_at': datetime.now(timezone.utc).isoformat(),
+        'generated_at': datetime.now(timezone.utc).isoformat(),
+        'freshness_status': 'fresh',
         'state': overall,
         'authority': 'flop-control-center',
         'read_only': True,
