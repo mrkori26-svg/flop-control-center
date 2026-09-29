@@ -59,6 +59,7 @@ def snapshot(cfg):
         'blockrewards': (worker / 'state-blockrewards-0-of-1/status.json', 180),
         'harness': (worker / 'state-harness-0-of-1/status.json', 180),
         'kibble': (worker / 'state/status.json', 180),
+        'kibble_compliance': (worker / 'state/kibble-compliance.json', 300),
         'passport': (worker / 'ecosystem/harness/state/qualification.json', 600),
         'observatory': (lab / '.runtime/observatory-supervisor.json', 10800),
         'runtime_evidence': (lab / '.runtime/runtime-health.json', 10800),
@@ -120,6 +121,19 @@ def snapshot(cfg):
             'tapeAsOf': published.get('tapeAsOf'),
         }
 
+    for lane_name in ('blockrewards', 'harness'):
+        tracker = components[lane_name].get('data', {}).get('passTracker', {})
+        passes = int(tracker.get('pass') or 0)
+        receipts = int(tracker.get('receipts') or 0)
+        if components[lane_name]['state'] == 'healthy' and receipts < passes:
+            components[lane_name]['state'] = 'degraded'
+            components[lane_name]['last_error'] = 'PASS_WITHOUT_REQUIRED_RECEIPT'
+
+    kibble_compliance = components['kibble_compliance'].get('data', {})
+    if components['kibble_compliance']['state'] == 'healthy' and kibble_compliance.get('healthy') is not True:
+        components['kibble_compliance']['state'] = 'degraded'
+        components['kibble_compliance']['last_error'] = 'KIBBLE_PROTOCOL_COMPLIANCE_FAILED'
+
     kibble_state_path = worker / 'state/kibble-handled.json'
     kibble_state = _load_json(kibble_state_path) or {}
     counts = {}
@@ -168,6 +182,8 @@ def snapshot(cfg):
             **({'lane': spec['lane']} if isinstance(spec, dict) and spec.get('lane') else {}),
             **({'checkoutMode': spec['checkoutMode']} if isinstance(spec, dict) and spec.get('checkoutMode') else {}),
             **({'pinnedCommit': spec['pinnedCommit']} if isinstance(spec, dict) and spec.get('pinnedCommit') else {}),
+            **({'taskInterpreterExpected': spec['taskInterpreterExpected']} if isinstance(spec, dict) and spec.get('taskInterpreterExpected') else {}),
+            **({'knownConstraint': spec['knownConstraint']} if isinstance(spec, dict) and spec.get('knownConstraint') else {}),
         }
         for name, spec in (manifest.get('components') or {}).items()
         if isinstance(spec, dict)
