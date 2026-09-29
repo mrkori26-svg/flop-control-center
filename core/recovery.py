@@ -65,7 +65,7 @@ def snapshot(cfg):
         'adoption_watch': (Path.home() / 'AppData/Local/FLOP/adoption/latest.json', 10800),
         'longitudinal': (live / '_publish/longitudinal-evidence-v1/runtime-public/longitudinal/latest.json', 10800),
         'probe': (Path.home() / 'AppData/Local/Technocore/probe-agent/runtime-heartbeat.json', 120),
-        'signer': (Path.home() / 'AppData/Local/Technocore/signer-health.json', 180),
+        'signer': (Path.home() / 'AppData/Local/Technocore/signer-health.json', 420),
         'root_audit': (worker / 'ecosystem/root-audit-latest.json', 10800),
     }
     components = {name: observe(path, age) for name, (path, age) in sources.items()}
