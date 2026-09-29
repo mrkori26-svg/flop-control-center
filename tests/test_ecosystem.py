@@ -40,7 +40,7 @@ class EcosystemSnapshotTests(unittest.TestCase):
                 'healthy':True,
                 'lanes':[]
             }), encoding='utf-8')
-            lane = root / 'useful-work-operator' / 'state-blockrewards-0-of-2'
+            lane = root / 'useful-work-operator' / 'state-blockrewards-0-of-1'
             lane.mkdir(parents=True)
             (lane / 'status.json').write_text(json.dumps({'healthy':True}), encoding='utf-8')
 
@@ -49,8 +49,8 @@ class EcosystemSnapshotTests(unittest.TestCase):
             self.assertEqual(result['counts']['offers'], 61)
             self.assertEqual(len(result['top_opportunities']), 50)
             self.assertEqual(len(result['interesting_rooms']), 100)
+            self.assertEqual(len(result['blockrewards']['lanes']), 1)
             self.assertTrue(result['blockrewards']['lanes'][0]['healthy'])
-            self.assertEqual(result['blockrewards']['lanes'][1]['state'], 'missing')
             self.assertEqual(result['supervisor']['state'], 'healthy')
             self.assertIn('deterministic validation', result['blockrewards']['precision_policy'])
             self.assertIn('observations', result['claim_boundary'])

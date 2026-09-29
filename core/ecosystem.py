@@ -29,8 +29,7 @@ def snapshot(root):
     harness_portfolio_daemon_path = Path(root) / 'useful-work-operator' / 'ecosystem' / 'harness' / 'state' / 'portfolio-daemon.json'
     ecosystem_supervisor_path = Path(root) / 'useful-work-operator' / 'ecosystem' / 'ecosystem-supervisor-heartbeat.json'
     block_lane_paths = [
-        Path(root) / 'useful-work-operator' / 'state-blockrewards-0-of-2' / 'status.json',
-        Path(root) / 'useful-work-operator' / 'state-blockrewards-1-of-2' / 'status.json',
+        Path(root) / 'useful-work-operator' / 'state-blockrewards-0-of-1' / 'status.json',
     ]
     try:
         harness_tracker = json.loads(harness_tracker_path.read_text(encoding='utf-8')) if harness_tracker_path.exists() else None
