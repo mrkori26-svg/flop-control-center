@@ -207,7 +207,8 @@ def snapshot(cfg):
 
     internal_problem = any(v['state'] in {'degraded', 'blocked', 'attention', 'stale'} for v in components.values())
     external_block = any(v['state'] == 'blocked_external' for v in components.values())
-    overall = 'degraded' if internal_problem else ('blocked_external' if external_block else 'healthy')
+    overall = 'degraded' if internal_problem else 'healthy'
+    external_state = 'blocked_external' if external_block else 'ready'
     manifest = _load_json(live / 'STACK_MANIFEST.json') or {}
     inventory = {
         name: {
@@ -228,6 +229,7 @@ def snapshot(cfg):
         'generated_at': datetime.now(timezone.utc).isoformat(),
         'freshness_status': 'fresh',
         'state': overall,
+        'external_state': external_state,
         'authority': 'flop-control-center',
         'read_only': True,
         'components': components,
