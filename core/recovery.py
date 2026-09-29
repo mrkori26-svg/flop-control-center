@@ -66,6 +66,7 @@ def snapshot(cfg):
         'longitudinal': (live / '_publish/longitudinal-evidence-v1/runtime-public/longitudinal/latest.json', 10800),
         'probe': (Path.home() / 'AppData/Local/Technocore/probe-agent/runtime-heartbeat.json', 120),
         'signer': (Path.home() / 'AppData/Local/Technocore/signer-health.json', 180),
+        'root_audit': (worker / 'ecosystem/root-audit-latest.json', 10800),
     }
     components = {name: observe(path, age) for name, (path, age) in sources.items()}
 
@@ -82,6 +83,21 @@ def snapshot(cfg):
     ):
         components['signer']['state'] = 'degraded'
         components['signer']['last_error'] = 'SIGNER_HEALTH_NOT_VERIFIED'
+
+    root_audit_data = components['root_audit'].get('data', {})
+    root_counts = root_audit_data.get('counts', {}) if isinstance(root_audit_data, dict) else {}
+    root_blocking = int(root_counts.get('blocking') or 0)
+    components['root_audit']['release_health'] = {
+        'status': root_audit_data.get('status'),
+        'blocking': root_blocking,
+        'warnings': int(root_counts.get('warnings') or 0),
+        'dirtyAuthoritative': int(root_counts.get('dirtyAuthoritative') or 0),
+        'dirtyStaging': int(root_counts.get('dirtyStaging') or 0),
+        'dirtyNonAuthoritative': int(root_counts.get('dirtyNonAuthoritative') or 0),
+    }
+    if components['root_audit']['state'] == 'healthy' and root_blocking > 0:
+        components['root_audit']['state'] = 'degraded'
+        components['root_audit']['last_error'] = 'ROOT_AUDIT_BLOCKING_FINDINGS'
 
     qualification = components['passport'].get('data', {})
     published = qualification.get('published', {})
@@ -135,6 +151,9 @@ def snapshot(cfg):
     metrics['passport.externally_accepted'] = passport_ok
     metrics['kibble.legacy_unverified'] = legacy_unverified
     metrics['kibble.submitted_without_acceptance'] = submitted_unverified
+    metrics['root_audit.blocking'] = root_blocking
+    metrics['root_audit.warnings'] = int(root_counts.get('warnings') or 0)
+    metrics['root_audit.dirty_authoritative'] = int(root_counts.get('dirtyAuthoritative') or 0)
     adoption = components['adoption_watch'].get('data', {})
     metrics['adoption.independent_verified'] = bool(adoption.get('classification') == 'VERIFIED_EXTERNAL_ADOPTION')
 
