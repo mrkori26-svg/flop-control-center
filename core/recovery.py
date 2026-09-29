@@ -141,6 +141,15 @@ def snapshot(cfg):
     if components['kibble_compliance']['state'] == 'healthy' and kibble_compliance.get('healthy') is not True:
         components['kibble_compliance']['state'] = 'degraded'
         components['kibble_compliance']['last_error'] = 'KIBBLE_PROTOCOL_COMPLIANCE_FAILED'
+    elif components['kibble_compliance']['state'] == 'healthy' and kibble_compliance.get('externalAuthorityState') in {'UNAVAILABLE', 'NOT_INDEXED'}:
+        components['kibble_compliance']['state'] = 'blocked_external'
+        components['kibble_compliance']['last_error'] = 'KIBBLE_BOARD_' + str(kibble_compliance.get('externalAuthorityState'))
+        components['kibble_compliance']['blocker'] = {
+            'type': 'EXTERNAL_SCORING_AUTHORITY',
+            'authorityState': kibble_compliance.get('externalAuthorityState'),
+            'scoreError': kibble_compliance.get('scoreError'),
+            'boardFound': (kibble_compliance.get('boardScore') or {}).get('found') if isinstance(kibble_compliance.get('boardScore'), dict) else None,
+        }
 
     kibble_state_path = worker / 'state/kibble-handled.json'
     kibble_state = _load_json(kibble_state_path) or {}
