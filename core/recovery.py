@@ -165,6 +165,11 @@ def snapshot(cfg):
     metrics['passport.externally_accepted'] = passport_ok
     metrics['kibble.legacy_unverified'] = legacy_unverified
     metrics['kibble.submitted_without_acceptance'] = submitted_unverified
+    kibble_counts = kibble_compliance.get('counts', {}) if isinstance(kibble_compliance, dict) else {}
+    metrics['kibble.externally_useful'] = kibble_counts.get('externallyUseful')
+    metrics['kibble.externally_rejected'] = kibble_counts.get('externallyRejected')
+    metrics['kibble.pending_external_review'] = kibble_counts.get('pendingExternalReview')
+    metrics['kibble.protocol_violations'] = kibble_counts.get('internalViolations')
     metrics['root_audit.blocking'] = root_blocking
     metrics['root_audit.warnings'] = int(root_counts.get('warnings') or 0)
     metrics['root_audit.dirty_authoritative'] = int(root_counts.get('dirtyAuthoritative') or 0)
