@@ -49,6 +49,20 @@ def read_json(path: Path) -> dict:
         return {}
 
 
+def export_state_with_retry(attempts: int = 15, delay_seconds: float = 1.0) -> subprocess.CompletedProcess[str]:
+    last = None
+    for _ in range(attempts):
+        last = run([PY312, EXPORT], timeout=60)
+        combined = (last.stdout or "") + "\n" + (last.stderr or "")
+        if last.returncode == 0:
+            return last
+        if "FLOP_STACK_STATE_WRITER_ALREADY_RUNNING" not in combined:
+            return last
+        time.sleep(delay_seconds)
+    assert last is not None
+    return last
+
+
 def signer_status() -> dict:
     p = run(
         [SIGNER_PY, SIGNER_CLIENT],
@@ -186,7 +200,7 @@ def execute_rehearsal() -> dict:
     OUT.write_text(json.dumps(interim, indent=2) + "\n", encoding="utf-8")
 
     root_audit = run(["node.exe", ROOT_AUDIT], timeout=120)
-    export = run([PY312, EXPORT], timeout=60)
+    export = export_state_with_retry()
     final_state = read_json(STATE)
     final_signer = signer_status()
 
@@ -237,7 +251,7 @@ def execute_rehearsal() -> dict:
     OUT.write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
     # Regenerate once more with the final PASS/FAIL proof materialized, so the
     # authoritative stack snapshot describes the post-recovery steady state.
-    post_export = run([PY312, EXPORT], timeout=60)
+    post_export = export_state_with_retry()
     post_state = read_json(STATE)
     proof["postProofSnapshot"] = {
         "exportReturnCode": post_export.returncode,
@@ -249,7 +263,7 @@ def execute_rehearsal() -> dict:
         proof["status"] = "FAIL"
         proof["checks"]["stack_returned_healthy"] = False
         OUT.write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
-        run([PY312, EXPORT], timeout=60)
+        export_state_with_retry()
     else:
         OUT.write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
     return proof
