@@ -72,6 +72,11 @@ def snapshot(cfg):
         'probe': (Path.home() / 'AppData/Local/Technocore/probe-agent/runtime-heartbeat.json', 120),
         'signer': (Path.home() / 'AppData/Local/Technocore/signer-health.json', 420),
         'root_audit': (worker / 'ecosystem/root-audit-latest.json', 10800),
+        'recovery_proof': (Path.home() / 'AppData/Local/FLOP/recovery/cold-boot-proof.json', 172800),
+        'identity_aware': (Path.home() / 'AppData/Local/FLOP/observatory/identity-aware.json', 10800),
+        'boundary_suite': (Path.home() / 'AppData/Local/FLOP/observatory/boundary-suite.json', 10800),
+        'stranger_journey': (Path.home() / 'AppData/Local/FLOP/observatory/stranger-journey.json', 21600),
+        'appendix_e_coverage': (Path.home() / 'AppData/Local/FLOP/observatory/appendix-e-coverage.json', 86400),
     }
     components = {name: observe(path, age) for name, (path, age) in sources.items()}
 
