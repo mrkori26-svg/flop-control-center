@@ -111,6 +111,9 @@ def execute_rehearsal() -> dict:
     started = now()
     baseline_state = read_json(STATE)
     baseline_signer = signer_status()
+    baseline_probe = read_json(PROBE_HEARTBEAT)
+    baseline_work = read_json(WORK_HEARTBEAT)
+    baseline_obs = read_json(OBS_HEARTBEAT)
 
     actions = []
     actions.append(task("RUN", "TechnocoreSignerWatchdog"))
@@ -128,11 +131,14 @@ def execute_rehearsal() -> dict:
     probe_ok = wait_until(
         lambda: fresh(PROBE_HEARTBEAT, 90)
         and read_json(PROBE_HEARTBEAT).get("status") == "OK"
-        and read_json(PROBE_HEARTBEAT).get("runtimeStatus") == "ACTIVE",
+        and read_json(PROBE_HEARTBEAT).get("runtimeStatus") == "ACTIVE"
+        and read_json(PROBE_HEARTBEAT).get("runtimeInstanceId") not in {None, baseline_probe.get("runtimeInstanceId")},
         90,
     )
     work_ok = wait_until(
-        lambda: fresh(WORK_HEARTBEAT, 120) and read_json(WORK_HEARTBEAT).get("healthy") is True,
+        lambda: fresh(WORK_HEARTBEAT, 120)
+        and read_json(WORK_HEARTBEAT).get("healthy") is True
+        and read_json(WORK_HEARTBEAT).get("pid") not in {None, baseline_work.get("pid")},
         90,
     )
     obs_process_ok = wait_until(
@@ -147,7 +153,8 @@ def execute_rehearsal() -> dict:
     )
     obs_health_ok = wait_until(
         lambda: fresh(OBS_HEARTBEAT, 300)
-        and read_json(OBS_HEARTBEAT).get("status") == "HEALTHY",
+        and read_json(OBS_HEARTBEAT).get("status") == "HEALTHY"
+        and str(read_json(OBS_HEARTBEAT).get("checkedAt") or "") > str(baseline_obs.get("checkedAt") or ""),
         300,
         interval=5.0,
     )
@@ -203,6 +210,9 @@ def execute_rehearsal() -> dict:
             "stackState": baseline_state.get("state"),
             "externalState": baseline_state.get("external_state"),
             "signer": baseline_signer,
+            "probeRuntimeInstanceId": baseline_probe.get("runtimeInstanceId"),
+            "workSupervisorPid": baseline_work.get("pid"),
+            "observatoryCheckedAt": baseline_obs.get("checkedAt"),
         },
         "recovery": {
             "actions": actions,
