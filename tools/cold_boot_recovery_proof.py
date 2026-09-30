@@ -122,6 +122,8 @@ def execute_rehearsal() -> dict:
 
     actions.append(task("END", "TechnocoreProbeAgent"))
     actions.append(task("END", "FLOPLongitudinalObservatory"))
+    killed_probe = kill_matching(r"probe_agent_bootstrap\.py")
+    killed_observatory = kill_matching(r"observatory-supervisor\.py")
     killed_work = kill_matching(r"operator-supervisor\.mjs")
 
     actions.append(task("RUN", "TechnocoreProbeAgent"))
@@ -216,6 +218,8 @@ def execute_rehearsal() -> dict:
         },
         "recovery": {
             "actions": actions,
+            "killedProbePids": killed_probe,
+            "killedObservatoryPids": killed_observatory,
             "killedWorkSupervisorPids": killed_work,
             "signerAfterWatchdog": signer_after_watchdog,
         },
