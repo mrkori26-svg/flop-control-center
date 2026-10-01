@@ -51,6 +51,17 @@ def observe(path, max_age=10800):
     return result
 
 
+def external_readiness(components):
+    """Require current dependency evidence before reporting external readiness."""
+    dependencies = [components[name] for name in ('passport', 'kibble_compliance')]
+    if any(item['state'] == 'blocked_external' for item in dependencies):
+        return 'blocked_external'
+    if any(item.get('freshness_status') != 'fresh' or
+           item['state'] not in {'healthy', 'telemetry_stale'} for item in dependencies):
+        return 'unknown'
+    return 'ready'
+
+
 def snapshot(cfg):
     root = Path(cfg['_root'])
     live = Path(cfg.get('runtime_root', root))
@@ -211,9 +222,8 @@ def snapshot(cfg):
     metrics['adoption.independent_verified'] = bool(adoption.get('classification') == 'VERIFIED_EXTERNAL_ADOPTION')
 
     internal_problem = any(v['state'] in {'degraded', 'blocked', 'attention', 'stale'} for v in components.values())
-    external_block = any(v['state'] == 'blocked_external' for v in components.values())
     overall = 'degraded' if internal_problem else 'healthy'
-    external_state = 'blocked_external' if external_block else 'ready'
+    external_state = external_readiness(components)
     manifest = _load_json(live / 'STACK_MANIFEST.json') or {}
     inventory = {
         name: {

@@ -3,6 +3,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from core.runner import _background_subprocess_kwargs
+
 
 def _git(repo: Path, *args: str) -> str:
     result = subprocess.run(
@@ -10,6 +12,7 @@ def _git(repo: Path, *args: str) -> str:
         check=True,
         capture_output=True,
         text=True,
+        **_background_subprocess_kwargs(),
     )
     return result.stdout.strip()
 
