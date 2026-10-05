@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -88,20 +89,47 @@ def task(command: str, name: str) -> dict:
     return {"task": name, "command": command, "returncode": p.returncode, "stdout": p.stdout.strip()[-500:], "stderr": p.stderr.strip()[-500:]}
 
 
+def matching_pids(pattern: str) -> list[int]:
+    # Enumerate actual interpreter processes; never match the PowerShell query
+    # itself, other shells or the desktop remote-control host.
+    p = run(["powershell.exe", "-NoProfile", "-Command",
+             "@(Get-CimInstance Win32_Process | Where-Object { $_.Name -in @('python.exe','pythonw.exe','node.exe') } | Select-Object ProcessId,CommandLine) | ConvertTo-Json -Compress"], timeout=20)
+    if p.returncode != 0:
+        raise RuntimeError("RECOVERY_PROCESS_ENUMERATION_FAILED")
+    rows = json.loads(p.stdout or "[]")
+    if isinstance(rows, dict):
+        rows = [rows]
+    return [int(row["ProcessId"]) for row in rows
+            if row.get("CommandLine") and str(ROOT).lower() in row["CommandLine"].lower()
+            and re.search(pattern, row["CommandLine"], re.IGNORECASE)
+            and int(row["ProcessId"]) != os.getpid()]
+
+
 def kill_matching(pattern: str) -> list[int]:
-    ps = (
-        "$p=Get-CimInstance Win32_Process | Where-Object {"
-        "$_.CommandLine -and $_.CommandLine -match '" + pattern.replace("'", "''") + "'"
-        "}; $p | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue; $_.ProcessId }"
-    )
-    p = run(["powershell.exe", "-NoProfile", "-Command", ps], timeout=20)
-    out = []
-    for line in p.stdout.splitlines():
-        try:
-            out.append(int(line.strip()))
-        except Exception:
-            pass
-    return out
+    pids = matching_pids(pattern)
+    for pid in pids:
+        p = run(["powershell.exe", "-NoProfile", "-Command",
+                 f"Stop-Process -Id {pid} -Force -ErrorAction Stop"], timeout=20)
+        if p.returncode != 0:
+            raise RuntimeError(f"RECOVERY_PROCESS_STOP_FAILED:{pid}")
+    return pids
+
+
+def reconstructed_local_health(state: dict) -> bool:
+    """Assess all other sources while the recovery proof itself is running.
+
+    External blockers remain visible and cannot become settlement claims.
+    Only the self-reference is excluded; missing or stale local evidence fails.
+    """
+    components = state.get("components")
+    if state.get("freshness_status") != "fresh" or not isinstance(components, dict):
+        return False
+    required = {"operator", "ecosystem", "root_audit", "probe", "signer", "observatory"}
+    if not required.issubset(components):
+        return False
+    return all(item.get("freshness_status") == "fresh"
+               and item.get("state") in {"healthy", "blocked_external", "telemetry_stale"}
+               for name, item in components.items() if name != "recovery_proof")
 
 
 def fresh(path: Path, max_age: float) -> bool:
@@ -128,6 +156,7 @@ def execute_rehearsal() -> dict:
     baseline_probe = read_json(PROBE_HEARTBEAT)
     baseline_work = read_json(WORK_HEARTBEAT)
     baseline_obs = read_json(OBS_HEARTBEAT)
+    baseline_obs_pids = set(matching_pids(r"observatory-supervisor\.py"))
 
     actions = []
     actions.append(task("RUN", "TechnocoreSignerWatchdog"))
@@ -158,13 +187,7 @@ def execute_rehearsal() -> dict:
         90,
     )
     obs_process_ok = wait_until(
-        lambda: run(
-            [
-                "powershell.exe", "-NoProfile", "-Command",
-                "(Get-CimInstance Win32_Process | Where-Object {$_.CommandLine -match 'observatory-supervisor.py'} | Measure-Object).Count",
-            ],
-            timeout=10,
-        ).stdout.strip() not in {"", "0"},
+        lambda: bool(set(matching_pids(r"observatory-supervisor\.py")) - baseline_obs_pids),
         30,
     )
     obs_health_ok = wait_until(
@@ -176,7 +199,7 @@ def execute_rehearsal() -> dict:
     )
 
     # Break the self-reference deliberately: while validating the reconstructed stack,
-    # publish a fresh non-failing interim proof. A stale/previous FAIL proof must not
+    # publish an explicit RUNNING interim proof, which remains unverified. A stale/previous FAIL proof must not
     # make the recovery test fail merely because it is the component under test.
     interim = {
         "schema": "flop.cold-boot-recovery-proof/v1",
@@ -214,7 +237,7 @@ def execute_rehearsal() -> dict:
         "work_engine_recovered": work_ok,
         "observatory_recovered": bool(obs_process_ok and obs_health_ok),
         "state_reconstructed_from_evidence": root_audit.returncode == 0 and export.returncode == 0 and final_state.get("freshness_status") == "fresh",
-        "stack_returned_healthy": final_state.get("state") == "healthy",
+        "stack_returned_healthy": reconstructed_local_health(final_state),
     }
     proof = {
         "schema": "flop.cold-boot-recovery-proof/v1",

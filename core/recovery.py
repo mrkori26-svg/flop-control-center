@@ -28,7 +28,7 @@ def observe(path, max_age=10800):
         data = json.loads(path.read_text(encoding='utf-8-sig'))
         if not isinstance(data, dict):
             raise ValueError('EXPECTED_OBJECT')
-        stamp = next((data.get(k) for k in ('at', 'checkedAt', 'generatedAt', 'updatedAt') if data.get(k)), None)
+        stamp = next((data.get(k) for k in ('at', 'checkedAt', 'generatedAt', 'updatedAt', 'finishedAt') if data.get(k)), None)
         if stamp is None and isinstance(data.get('attemptAt'), (int, float)):
             stamp = datetime.fromtimestamp(float(data['attemptAt']) / 1000.0, tz=timezone.utc).isoformat()
         if stamp is None:
@@ -90,6 +90,22 @@ def snapshot(cfg):
         'appendix_e_coverage': (Path.home() / 'AppData/Local/FLOP/observatory/appendix-e-coverage.json', 86400),
     }
     components = {name: observe(path, age) for name, (path, age) in sources.items()}
+
+    # A running, missing or incomplete rehearsal must never certify recovery.
+    proof = components['recovery_proof'].get('data', {})
+    proof_checks = proof.get('checks')
+    required_recovery_checks = (
+        'signer_available_without_key_export', 'probe_recovered',
+        'work_engine_recovered', 'observatory_recovered',
+        'state_reconstructed_from_evidence', 'stack_returned_healthy',
+    )
+    if components['recovery_proof']['state'] == 'healthy' and not (
+        proof.get('status') == 'PASS' and proof.get('finishedAt')
+        and isinstance(proof_checks, dict)
+        and all(proof_checks.get(key) is True for key in required_recovery_checks)
+    ):
+        components['recovery_proof']['state'] = 'degraded'
+        components['recovery_proof']['last_error'] = 'RECOVERY_NOT_COMPLETED_AND_VERIFIED'
 
     probe_data = components['probe'].get('data', {})
     if components['probe']['state'] == 'healthy' and not (
