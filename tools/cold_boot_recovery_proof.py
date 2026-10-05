@@ -168,6 +168,7 @@ def execute_rehearsal() -> dict:
     killed_probe = kill_matching(r"probe_agent_bootstrap\.py")
     killed_observatory = kill_matching(r"observatory-supervisor\.py")
     killed_work = kill_matching(r"operator-supervisor\.mjs")
+    killed_work_lanes = kill_matching(r"[\\/]useful-work-operator[\\/]operator\.mjs")
 
     actions.append(task("RUN", "TechnocoreProbeAgent"))
     actions.append(task("RUN", "FLOPLongitudinalObservatory"))
@@ -258,6 +259,7 @@ def execute_rehearsal() -> dict:
             "killedProbePids": killed_probe,
             "killedObservatoryPids": killed_observatory,
             "killedWorkSupervisorPids": killed_work,
+            "killedWorkLanePids": killed_work_lanes,
             "signerAfterWatchdog": signer_after_watchdog,
         },
         "final": {
@@ -298,7 +300,20 @@ def main() -> int:
         proof = read_json(OUT)
         print(json.dumps(proof or {"status": "MISSING", "path": str(OUT)}, indent=2))
         return 0 if proof else 2
-    proof = execute_rehearsal()
+    try:
+        proof = execute_rehearsal()
+    except Exception as exc:
+        proof = {
+            "schema": "flop.cold-boot-recovery-proof/v1", "finishedAt": now(),
+            "status": "FAIL", "error": f"{type(exc).__name__}: {exc}",
+            "claimBoundary": "Recovery rehearsal failed; no completed recovery claim.",
+        }
+        OUT_DIR.mkdir(parents=True, exist_ok=True)
+        OUT.write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
+        # Always attempt restoration if the rehearsal failed after stopping an owner.
+        for name in ("TechnocoreProbeAgent", "FLOPLongitudinalObservatory", "FLOPUsefulWorkOperatorWatchdog"):
+            task("RUN", name)
+        export_state_with_retry()
     print(json.dumps(proof, indent=2))
     return 0 if proof["status"] == "PASS" else 1
 
