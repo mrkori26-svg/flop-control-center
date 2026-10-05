@@ -110,7 +110,9 @@ def kill_matching(pattern: str) -> list[int]:
     for pid in pids:
         p = run(["powershell.exe", "-NoProfile", "-Command",
                  f"Stop-Process -Id {pid} -Force -ErrorAction Stop"], timeout=20)
-        if p.returncode != 0:
+        if p.returncode != 0 and pid in matching_pids(pattern):
+            # /END or an owner may have already exited this process after enumeration.
+            # A surviving matching process is still a hard failure.
             raise RuntimeError(f"RECOVERY_PROCESS_STOP_FAILED:{pid}")
     return pids
 

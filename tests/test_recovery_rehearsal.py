@@ -1,8 +1,9 @@
 import unittest
+from types import SimpleNamespace
 from datetime import datetime, timezone
 from unittest.mock import patch
 from core.recovery import snapshot
-from tools.cold_boot_recovery_proof import reconstructed_local_health
+from tools.cold_boot_recovery_proof import reconstructed_local_health, kill_matching
 
 
 class RecoveryRehearsalTests(unittest.TestCase):
@@ -11,6 +12,15 @@ class RecoveryRehearsalTests(unittest.TestCase):
             name: {'state': 'healthy', 'freshness_status': 'fresh'}
             for name in ('operator', 'ecosystem', 'root_audit', 'probe', 'signer', 'observatory')
         }}
+
+    def test_already_exited_process_is_an_idempotent_stop(self):
+        with patch('tools.cold_boot_recovery_proof.matching_pids', side_effect=[[42], []]), patch('tools.cold_boot_recovery_proof.run', return_value=SimpleNamespace(returncode=1)):
+            self.assertEqual(kill_matching('probe'), [42])
+
+    def test_surviving_process_cannot_pass_stop(self):
+        with patch('tools.cold_boot_recovery_proof.matching_pids', side_effect=[[42], [42]]), patch('tools.cold_boot_recovery_proof.run', return_value=SimpleNamespace(returncode=1)):
+            with self.assertRaisesRegex(RuntimeError, 'RECOVERY_PROCESS_STOP_FAILED'):
+                kill_matching('probe')
 
     def test_only_self_reference_may_be_excluded(self):
         state = self.state()
