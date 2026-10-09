@@ -23,6 +23,7 @@ from core.agent_work import read_agent_work
 from core.external_reuse import read_external_reuse
 from core.stack_overview import build_stack_overview
 from core.testnet import snapshot as testnet_snapshot
+from core.external_readiness_doctor import snapshot as external_readiness_snapshot
 
 
 def build(cfg):
@@ -130,6 +131,7 @@ def build(cfg):
     adoption = adoption_entrypoint(external_reuse, adoption_registry)
     stack_overview = build_stack_overview(runtime_loop, evidence_registry, interactions, drift_handoff, external_reuse, runtime_index)
     testnet = testnet_snapshot(root)
+    external_readiness = external_readiness_snapshot(root)
 
     if runtime_loop.get('state') in {'attention', 'invalid', 'stale', 'no_data'}:
         alerts.append({'level': 'warn', 'text': 'Runtime Observatory requires attention; inspect freshness/coverage/status metrics'})
@@ -155,6 +157,7 @@ def build(cfg):
         'external_evidence_reuse': external_reuse,
         'stack_overview': stack_overview,
         'flop_testnet': testnet,
+        'external_readiness': external_readiness,
         'repos': data['repos'],
         'tasks': data['tasks'],
         'github': data['github'],

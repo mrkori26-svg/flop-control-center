@@ -20,6 +20,19 @@ UI = HERE / 'ui' / 'public'
 
 
 class Handler(SimpleHTTPRequestHandler):
+    def log_message(self, fmt, *args):
+        # pythonw.exe has no stderr; BaseHTTPRequestHandler logging to it
+        # raises while sending headers and produces empty HTTP responses.
+        try:
+            log = HERE / 'runtime' / 'http-access.log'
+            log.parent.mkdir(parents=True, exist_ok=True)
+            if log.exists() and log.stat().st_size > 1_000_000:
+                log.replace(log.with_suffix('.log.1'))
+            with log.open('a', encoding='utf-8') as out:
+                out.write((fmt % args)[:500] + '\\n')
+        except (OSError, TypeError, ValueError):
+            pass
+
     def translate_path(self, path):
         rel = urlparse(path).path.lstrip('/') or 'index.html'
         return str(UI / rel)
