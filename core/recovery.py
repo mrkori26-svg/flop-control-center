@@ -68,6 +68,7 @@ def snapshot(cfg):
     worker = live / 'useful-work-operator'
     lab = live / 'flop-conformance-lab'
     sources = {
+        'agent_play': (Path.home() / 'AppData/Local/FLOP/agent-play/heartbeat.json', 120),
         'operator': (worker / 'state/operator-supervisor-heartbeat.json', 180),
         'ecosystem': (worker / 'ecosystem/ecosystem-supervisor-heartbeat.json', 180),
         'upstream_sync': (worker / 'ecosystem/upstream-sync.json', 1200),
