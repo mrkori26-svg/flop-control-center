@@ -166,14 +166,14 @@ def execute_rehearsal() -> dict:
     signer_after_watchdog = signer_status()
 
     actions.append(task("END", "TechnocoreProbeAgent"))
-    actions.append(task("END", "FLOPLongitudinalObservatory"))
+    actions.append(task("END", "FLOPUnifiedObservatory"))
     killed_probe = kill_matching(r"probe_agent_bootstrap\.py")
     killed_observatory = kill_matching(r"observatory-supervisor\.py")
     killed_work = kill_matching(r"operator-supervisor\.mjs")
     killed_work_lanes = kill_matching(r"[\\/]useful-work-operator[\\/]operator\.mjs")
 
     actions.append(task("RUN", "TechnocoreProbeAgent"))
-    actions.append(task("RUN", "FLOPLongitudinalObservatory"))
+    actions.append(task("RUN", "FLOPUnifiedObservatory"))
     actions.append(task("RUN", "FLOPUsefulWorkOperatorWatchdog"))
 
     probe_ok = wait_until(
@@ -313,7 +313,7 @@ def main() -> int:
         OUT_DIR.mkdir(parents=True, exist_ok=True)
         OUT.write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
         # Always attempt restoration if the rehearsal failed after stopping an owner.
-        for name in ("TechnocoreProbeAgent", "FLOPLongitudinalObservatory", "FLOPUsefulWorkOperatorWatchdog"):
+        for name in ("TechnocoreProbeAgent", "FLOPUnifiedObservatory", "FLOPUsefulWorkOperatorWatchdog"):
             task("RUN", name)
         export_state_with_retry()
     print(json.dumps(proof, indent=2))
