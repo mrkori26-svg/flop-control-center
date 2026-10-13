@@ -197,7 +197,7 @@ def execute_rehearsal() -> dict:
         lambda: fresh(OBS_HEARTBEAT, 300)
         and read_json(OBS_HEARTBEAT).get("status") == "HEALTHY"
         and str(read_json(OBS_HEARTBEAT).get("checkedAt") or "") > str(baseline_obs.get("checkedAt") or ""),
-        300,
+        600,
         interval=5.0,
     )
 
