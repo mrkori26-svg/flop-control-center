@@ -1,7 +1,31 @@
 from datetime import datetime, timezone
+import json
+from pathlib import Path
+
+
+def read_buyer_evidence(path):
+    if not path:
+        return classify_buyer_attribution(None)
+    try:
+        evidence = json.loads(Path(path).read_text(encoding='utf-8'))
+    except (OSError, ValueError, UnicodeError):
+        return {'status': 'UNKNOWN', 'reason': 'BUYER_EVIDENCE_UNAVAILABLE', 'rewardEligible': False}
+    return classify_buyer_attribution(evidence)
 
 ALLOWED_SOURCE_CLASSES = {'official', 'community', 'local'}
 ALLOWED_VERIFICATION_STATES = {'verified', 'observed', 'reported', 'unknown', 'invalid'}
+
+
+def classify_buyer_attribution(buyer_evidence):
+    """Fail-closed consumer of Router buyer-evidence/v1; never confers a reward claim."""
+    if not isinstance(buyer_evidence, dict) or buyer_evidence.get('schema') != 'flop-router/buyer-evidence/v1':
+        return {'status': 'UNKNOWN', 'reason': 'UNSUPPORTED_OR_MISSING_BUYER_EVIDENCE', 'rewardEligible': False}
+    assessment = buyer_evidence.get('attributionAssessment')
+    if not isinstance(assessment, dict) or assessment.get('status') not in {'PASS', 'FAIL', 'UNKNOWN'}:
+        return {'status': 'UNKNOWN', 'reason': 'ATTRIBUTION_ASSESSMENT_MISSING', 'rewardEligible': False}
+    if assessment.get('rewardEligibility') != 'UNKNOWN' or assessment.get('economicExecutionAllowed') is not False:
+        return {'status': 'UNKNOWN', 'reason': 'UNSAFE_ATTRIBUTION_CLAIM', 'rewardEligible': False}
+    return {'status': assessment['status'], 'reason': 'LOCAL_PROVISIONAL_SETTLEMENT_TRIAGE', 'rewardEligible': False}
 
 
 def _iso(value):

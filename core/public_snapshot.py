@@ -11,7 +11,7 @@ from core.trust_boundaries import public_trust_boundaries
 from core.operator_cockpit import build_operator_cockpit
 from core.continuity import build_continuity_evidence, peer_acknowledgements
 from core.continuity_journal import read_records, analyze
-from core.evidence_api import make_record
+from core.evidence_api import make_record, read_buyer_evidence
 from core.evidence_registry import build_registry
 from core.drift_handoff import read_handoff
 from core.adoption import adoption_entrypoint, read_adoption_registry
@@ -130,6 +130,11 @@ def build(cfg):
     adoption_registry = read_adoption_registry(adoption_path)
     adoption = adoption_entrypoint(external_reuse, adoption_registry)
     stack_overview = build_stack_overview(runtime_loop, evidence_registry, interactions, drift_handoff, external_reuse, runtime_index)
+    buyer_cfg = cfg.get('buyer_attribution_observatory', {})
+    buyer_path = buyer_cfg.get('evidence_path')
+    if buyer_path and not Path(buyer_path).is_absolute():
+        buyer_path = str(root / buyer_path)
+    buyer_attribution = read_buyer_evidence(buyer_path)
     testnet = testnet_snapshot(root)
     external_readiness = external_readiness_snapshot(root)
 
@@ -157,6 +162,7 @@ def build(cfg):
         'external_evidence_reuse': external_reuse,
         'stack_overview': stack_overview,
         'flop_testnet': testnet,
+        'buyer_attribution_observatory': buyer_attribution,
         'external_readiness': external_readiness,
         'repos': data['repos'],
         'tasks': data['tasks'],
