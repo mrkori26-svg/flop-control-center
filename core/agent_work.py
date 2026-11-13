@@ -1,8 +1,11 @@
 import json
 from pathlib import Path
+from datetime import datetime, timezone
+from .runtime_loop import _freshness
 
 
-def read_agent_work(path, limit=100):
+def read_agent_work(path, limit=100, now=None, max_age_seconds=10800):
+    now = now or datetime.now(timezone.utc)
     if not path:
         return {
             'schema': 'flop.agent-work-status.v1',
@@ -24,6 +27,7 @@ def read_agent_work(path, limit=100):
 
     records = []
     rejected = 0
+    seen = {}
     for line in target.read_text(encoding='utf-8').splitlines():
         if not line.strip():
             continue
@@ -32,12 +36,21 @@ def read_agent_work(path, limit=100):
         except Exception:
             rejected += 1
             continue
-        if item.get('schema') != 'flop.observation-record/v1':
+        if not isinstance(item, dict) or item.get('schema') != 'flop.observation-record/v1':
             rejected += 1
             continue
         dimensions = item.get('dimensions')
         if item.get('source') != 'runtime' or not isinstance(dimensions, dict) or dimensions.get('kind') != 'agent-work':
             continue
+        identity = item.get('id')
+        if not isinstance(identity, str) or not identity:
+            rejected += 1
+            continue
+        if identity in seen:
+            if seen[identity] != item:
+                rejected += 1
+            continue
+        seen[identity] = item
         records.append(item)
 
     executions = [item for item in records if item.get('metric') == 'runtime_availability']
@@ -55,6 +68,10 @@ def read_agent_work(path, limit=100):
     else:
         state = 'healthy'
 
+    freshness = _freshness(latest.get('observedAt') if latest else None, now, max_age_seconds)
+    if state == 'healthy' and freshness['state'] != 'fresh':
+        state = 'stale' if freshness['state'] == 'stale' else 'attention'
+
     retained = sorted(
         records,
         key=lambda item: (item.get('observedAt') or '', item.get('id') or ''),
@@ -62,6 +79,7 @@ def read_agent_work(path, limit=100):
     return {
         'schema': 'flop.agent-work-status.v1',
         'state': state,
+        'freshness': freshness,
         'path': str(target),
         'metrics': {
             'work_executions': len(executions),
